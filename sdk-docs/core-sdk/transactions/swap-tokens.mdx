@@ -1,0 +1,149 @@
+---
+title: "Swap tokens"
+---
+
+## Overview
+
+Typically swapping tokens is a multi-step process. You have to use a library like Web3.js to connect to a blockchain, approve a decentralized exchange smart contract to interact with your wallet, and execute the swap by calling the appropriate function.
+
+In a Fun Wallet, you can swap in one step and in this guide I’ll show you how. This guide will assume some basic knowledge covered in the Quick Start but I’ll quickly walk through all the steps again.
+
+#### Import required objects
+
+```bash
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment,
+  generatePrivateKey,
+} from "@funkit/core";
+```
+
+#### Configuring the Fun Wallet environment
+
+To begin, we need to set up the environment for your Fun Wallet. We’ll be using the Goerli testnet and a gasless sponsor. Please visit our [dashboard](https://app.fun.xyz) to receive your own production `apiKey`.
+
+```cs
+await configureEnvironment({
+  chain: "goerli",
+  gasSponsor: {
+    sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad",
+  },
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+#### Creating Auth with a private key
+
+We’ll use a private key as the authentication method so we'll create one.
+
+```cs
+const privateKey = generatePrivateKey();
+const auth = new Auth({ privateKey });
+```
+
+#### Creating Fun Wallet with Auth
+
+With the `Auth` instance that we created in the step before, we are now able to initialize and create your `FunWallet`.
+
+```cs
+const funWallet = new FunWallet({
+  users: [{ userId: auth.getAddress() }],
+  uniqueId: auth.getWalletUniqueId(),
+});
+```
+
+## Creating a swap
+
+Now that we've created a Fun Wallet, we can start swapping tokens. We’ll first set up the swap parameters required and I’ll give a quick definition of each parameter.
+
+1. `tokenIn` Token that we have to swap with.
+
+2. `tokenOut` Token that we get after swapping.
+
+3. `inAmount` How much of `tokenIn` that will get swapped.
+
+4. `slippage?` is the difference between the expected price of a trade and the actual executed price. See [here](https://support.uniswap.org/hc/en-us/articles/8643879653261-What-is-Price-Slippage-) for details. This field is optional.
+
+5. `returnAddress?` is an optional address to deposit the swapped funds. This field will default to your FunWallet’s address.
+
+```cs
+const swapParams = {
+    tokenIn: PRESWAP_TOKEN
+    tokenOut: POSTSWAP_TOKEN
+    inAmount: AMOUNT
+    slippage?: PERCENT // 4 = 4%
+    returnAddress?: POSTSWAP_ADDRESS
+}
+```
+
+Let’s create a simple swap from 0.01 ETH to USDC that deposits the USDC back into our address. We would fill out `swapParams` like this:
+
+```cs
+const swapParams = {
+  tokenIn: "eth",
+  inAmount: 0.01,
+  tokenOut: "usdc",
+};
+```
+
+Swap is not available on Base.
+
+[FunWallet](https://docs.fun.xyz/api-reference/fun-wallet) uses 1inch on chains where 1inch is [supported](https://docs.1inch.io/docs/1inch-network-overview/). Otherwise it uses Uniswap V3 on chains where Uniswap V3 is [supported](https://docs.uniswap.org/contracts/v3/reference/deployments). If 1inch or Uniswap V3 is not supported on the chain, [FunWallet](https://docs.fun.xyz/api-reference/fun-wallet) will use a copy of Uniswap V2 that fun.xyz deployed.
+
+Swaps can be done by either specifying the name of the asset to be swapped (e.g "eth") or by the address of the asset (e.g `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48`). FunKit has preloaded the addresses on all chains of all major tokens.
+
+## Executing the swap
+
+Now that we have specific the parameters for a swap. We can create the swap operation and execute it.
+
+```cs
+const swapOp = await funWallet.swap(auth, userId, swapParams);
+await funWallet.executeOperation(auth, swapOp);
+```
+
+## Summary
+
+Putting together all the pieces we have `swap()` that you can use to swap any asset in a FunWallet.
+
+```cs
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment
+} from '@funkit/core';
+
+const swap = async () => {
+  await configureEnvironment({
+    chain: "goerli",
+    gasSponsor: {
+      sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad"
+    },
+    apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+  })
+
+  const privateKey = "0x1bfda777ddaf097a791e98ea9bb8923f33f9a9e93c4ec3b0d8370de10782a825"
+  const auth = new Auth({
+    privateKey
+  })
+  const funWallet = new FunWallet({
+    users: [{
+      userId: await auth.getAddress()
+    }],
+    uniqueId: await auth.getWalletUniqueId(),
+  })
+
+  const swapOp = await funWallet.swap(
+    auth,
+    await auth.getAddress(), {
+      tokenIn: "eth",
+      tokenOut: "usdc",
+      inAmount: 0.1,
+    }
+  )
+  const receipt = await funWallet.executeOperation(auth, swapOp)
+  console.log(receipt)
+}
+
+swap()
+```

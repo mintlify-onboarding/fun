@@ -1,0 +1,193 @@
+---
+title: "Arbitrary transactions"
+---
+
+## Overview
+
+Sometimes in a Fun Wallet you want to create more sophisticated actions or do things in smart contracts that are not natively part of a FunWallet. FunWallets have the ability to execute arbitrary transactions, allowing you to execute any transaction interpretable by an EVM chain.
+
+In this guide, I’ll show you how to execute a transaction from a NFT minting smart contract so that you can mint your own NFT as an example of sending an arbitrary transaction. This guide will assume some basic knowledge covered in the Quick Start but I’ll quickly walk through all the steps again.
+
+#### Import required objects
+
+```bash
+import {
+  Auth,
+  configureEnvironment,
+  ContractInterface,
+  FunWallet,
+  TransactionParams,
+  generatePrivateKey,
+} from "@funkit/core"
+```
+
+#### Configuring the Fun Wallet environment
+
+To begin, we need to set up the environment for your FunWallet. We’ll be using the Goerli testnet and a gasless sponsor. Please visit our [dashboard](https://app.fun.xyz) to receive your own production `apiKey`.
+
+```cs
+await configureEnvironment({
+  chain: "goerli",
+  gasSponsor: {
+    sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad",
+  },
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+})
+```
+
+#### Creating Auth with a private key
+
+We’ll use a private key as the authentication method and I’ll provide us with one.
+
+```cs
+const privateKey = generatePrivateKey()
+const auth = new Auth({ privateKey })
+```
+
+#### Creating Fun Wallet with Auth
+
+With the `Auth` instance that we created in the step before, we are now able to initialize and create your `FunWallet`.
+
+```cs
+const funWallet = new FunWallet({
+  users: [{ userId: auth.getAddress() }],
+  uniqueId: auth.getWalletUniqueId(),
+})
+```
+
+## Create an arbitrary transaction
+
+Now that we’ve created a Fun Wallet, we can start to create an arbitrary transaction. For this example, I’ll be using this contract `0x25E07d90a4e2e9fb627FcF5f4FAd5165dDA6d592` that was written to mint NFTs. We can view additional details of this contract on [Etherscan](https://etherscan.io/address/0x25e07d90a4e2e9fb627fcf5f4fad5165dda6d592#code).
+
+### Getting the contract ABI
+
+The first step is getting the [contract ABI](https://www.alchemy.com/overviews/what-is-an-abi-of-a-smart-contract-examples-and-usage). This ABI serves as the interface to communicate with the smart contract. If you visit Etherscan, you'll locate the contract ABI at the bottom of the page. The entire contract ABI is 355 lines long, but to mint an NFT we only need a specific part the `mint` function. Here it is:
+
+```json
+const ABI = [
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "to",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "tokenId",
+        type: "uint256",
+      },
+    ],
+    name: "mint",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+]
+```
+
+### Passing in the contract inputs
+
+Now that we have the contract ABI, we need to pass in the contract and the function into the FunWallet to create a transaction. There are 2 things we need to pass in:
+
+1.  `contractAddress` \- This is the contract address that we selected.
+
+2.  `functionName` \- This is the name of the function that we’re using (`mint`).
+
+We also need to input the parameters for `mint` so that our FunWallet can execute it. Notice the two inputs that required are in the ABI and how we pass these inputs in together as an array.
+
+1.  `address` \- This is the address that we want to receive the minted NFT. Let’s use the wallet we just created.
+
+2.  `tokenId` \- This is the index of the NFT that we want to mint. I’m going to select NFT #100.
+
+```cs
+const tokenInterface = new ContractInterface(ABI);
+
+const transactionParams: TransactionParams =
+  tokenInterface.encodeTransactionParams(
+    "0x4903C3Ce6d80431b54FEDacaa7C3dc9d4d4eF61b", //ContractAddress
+    "mint", //FunctionName
+    [await wallet.getAddress(), 100] //Mint Inputs
+  );
+```
+
+### Executing the mint transaction
+
+Now that we have created the arbitrary transaction inputs, we can create the operation and execute it.
+
+```cs
+const operation = await wallet.createOperation(
+  auth,
+  await auth.getAddress(),
+  transactionParams
+);
+await wallet.executeOperation(auth, operation);
+```
+
+## Summary
+
+Putting together all the pieces we have `MintToken()` that you can use to swap any asset in a Fun Wallet.
+
+```bash
+import {
+  Auth,
+  configureEnvironment,
+  ContractInterface,
+  FunWallet,
+  TransactionParams,
+  generatePrivateKey
+} from "@funkit/core"
+
+const ABI = [{
+  "inputs": [{
+      "internalType": "address",
+      "name": "to",
+      "type": "address"
+    },
+    {
+      "internalType": "uint256",
+      "name": "tokenId",
+      "type": "uint256"
+    }
+  ],
+  "name": "mint",
+  "outputs": [],
+  "stateMutability": "nonpayable",
+  "type": "function"
+}]
+
+const MintToken = async () => {
+  await configureEnvironment({
+    chain: "goerli",
+    gasSponsor: {
+      sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad"
+    },
+    apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+  })
+
+  const privateKey = generatePrivateKey()
+  const auth = new Auth({
+    privateKey
+  })
+  const wallet = new FunWallet({
+    users: [{
+      userId: await auth.getAddress()
+    }],
+    uniqueId: await auth.getWalletUniqueId()
+  })
+
+  const tokenInterface = new ContractInterface(ABI)
+  const transactionParams: TransactionParams = tokenInterface.encodeTransactionParams(
+    "0x4903C3Ce6d80431b54FEDacaa7C3dc9d4d4eF61b",
+    "mint",
+    [await wallet.getAddress(), 100]
+  )
+
+  const operation = await wallet.createOperation(auth, await auth.getAddress(), transactionParams)
+  const receipt = await wallet.executeOperation(auth, operation)
+  console.log(receipt)
+
+}
+
+MintToken()
+```

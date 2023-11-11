@@ -1,0 +1,158 @@
+---
+title: "Chain configuration"
+description: Choose the blockchain to execute transactions on.
+---
+
+## Overview
+
+FunKit is compatible with any EVM chain and it is critical to set the EVM chain that you want to create your FunWallet on. In this how to guide, we will demonstrate how to set the EVM chain for a Fun Wallet, as well as how to switch to a different chain.
+
+You can chose any of these chains to create a Fun Wallet on:
+
+* [Ethereum-goerli](https://chainlist.org/chain/5)
+
+* [Ethereum](https://chainlist.org/chain/1)
+
+* [Base](https://chainlist.org/chain/8453)
+
+* [Polygon](https://chainlist.org/chain/137)
+
+* [Optimism](https://chainlist.org/chain/10)
+
+* [Arbitrum](https://chainlist.org/chain/42161)
+
+### Import required objects
+
+We have to import `configureEnvironment` to set up the environment.
+
+```java
+import { configureEnvironment } from "@funkit/core";
+```
+
+### Set chain in configureEnvironment
+
+Choosing the EVM chain you want to create a FunWallet is done when you are configuring the FunWallet environment.
+
+Let me explain the environment variables that we will need to input.
+
+1. `chain` – Each FunWallet exists on an [EVM chain](https://ethereum.org/en/developers/docs/evm/), and for this guide, we'll use the [Goerli testnet](https://goerli.net/).
+
+2. `apiKey` – We have provided a rate limited `apiKey` used strictly for demoing purposes. Please visit our dashboard to receive your own production `apiKey`.
+
+<Note> If chain is left blank, FunWallet will default to `goerli`.</Note>
+
+```cs
+configureEnvironment({
+  chain: "goerli",
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+### Switch chain in configureEnvironment
+
+If you want to switch the `chain` of a FunWallet all you need to do is update the `chain` in `configureEnvironment`.
+
+```cs
+configureEnvironment({
+  chain: "polygon",
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+### Summary
+
+Putting together all the pieces we can create a script that sets a chain to Goerli.
+
+```cs
+const { configureEnvironment } = require('@funkit/core')
+
+configureEnvironment({
+  chain: "goerli",
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+})
+```
+
+---
+
+## Additional Examples
+
+The FunWallet SDK manages network internally allowing you to process transactions on any chain by changing the environmental configuration. The Externally Owned Wallet (EOA) does not need to be on the same chain as the FunWallet SDK as it only acts as a signer.
+
+A big challenge when developing multi chain applications is managing the provider chain. The FunWallet SDK simplifies this by eliminating the requirment that the provider be on the same chain as the FunWallet. For example, if the EOA is a Metamask account in the browser set to the Polygon, the FunWallet SDK can still process transactions on Ethereum. This is because the EOA signatures are chain agnostic.
+
+Switch chains by updating the environment configuration.
+
+```java
+import { configureEnvironment } from '@funkit/core';
+const apiKey = "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+const options = {
+  chain: "base-goerli",
+  apiKey
+}
+configureEnvironment(options)
+
+// Switch to Ethereum Goerli
+const switchChain = async (chain) => {
+  options.chain = chain
+  await configureEnvironment(options)
+}
+
+await switchChain("goerli")
+```
+
+---
+
+### Advanced Chain Switch
+
+```cs
+const { FunWallet, configureEnvironment, Auth, generatePrivateKey } = require('@funkit/core');
+
+const API_KEY = "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+const PRIVATE_KEY = generatePrivateKey()
+
+const options = {
+  chain: "goerli",
+ apiKey: API_KEY,
+}
+configureEnvironment(options)
+
+// Switch chains
+const switchChain = async (chain) => {
+  options.chain = chain
+  await configureEnvironment(options)
+}
+
+const createMultiChainWallet = async () => {
+  const auth = new Auth({ privateKey: PRIVATE_KEY })
+
+  const funWallet = new FunWallet({
+    users: [{ userId: await auth.getAddress() }],
+    uniqueId: await auth.getWalletUniqueId()
+  })
+
+  let userOp = await funWallet.create(auth, await auth.getAddress())
+  let receipt = await funWallet.executeOperation(auth, userOp)
+
+  console.log(receipt)
+
+  await switchChain("base-mainnet")
+
+  userOp = await funWallet.create(auth, await auth.getAddress())
+  receipt = await funWallet.executeOperation(auth, userOp)
+
+  console.log(receipt)
+}
+
+createMultiChainWallet()
+```
+
+Optionally, you can add a polygon sponsor when you switch your chain with:
+
+```java
+SPONSOR_ADDR = "...";
+if (chain === "polygon-mainnet") {
+  options.gasSponsor = {
+    sponsorAddress: SPONSOR_ADDRESS,
+  };
+}
+```

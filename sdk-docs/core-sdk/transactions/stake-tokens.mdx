@@ -1,0 +1,212 @@
+---
+title: "Stake tokens"
+---
+
+## Overview
+
+[Staking](https://ethereum.org/en/staking/) is participating in a blockchain’s consensus mechanism to help secure chain. This involves “staking” the chain’s native token for certain amount of time. People normally consider staking their ETH in order to earn yield on ETH.
+
+In this guide, I’ll first show you how to stake ETH in a FunWallet. Then I’ll show you how to unstake ETH. This guide will assume some basic knowledge covered in the Quick Start but I’ll quickly walk through all the steps again.
+
+#### Import required objects
+
+```cs
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment,
+  generatePrivateKey,
+} from "@funkit/core";
+```
+
+#### Configuring the Fun Wallet environment
+
+To begin, we need to set up the environment for your Fun Wallet. We’ll be using the Goerli testnet and a gasless sponsor. Please visit our [dashboard](https://app.fun.xyz) to receive your own production `apiKey`.
+
+```cs
+await configureEnvironment({
+  chain: "goerli",
+  gasSponsor: {
+    sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad",
+  },
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+#### Creating Auth with a private key
+
+We’ll use a private key as the authentication method and I’ll provide us with one.
+
+```cs
+const privateKey = generatePrivateKey();
+const auth = new Auth({ privateKey });
+```
+
+#### Creating FunWallet with Auth
+
+With the `Auth` instance that we created in the step before, we are now able to initialize and create your `FunWallet`.
+
+```cs
+const funWallet = new FunWallet({
+  users: [{ userId: auth.getAddress() }],
+  uniqueId: auth.getWalletUniqueId(),
+});
+```
+
+## Staking
+
+Now that we’ve created a Fun Wallet, we can stake ETH that is in the wallet. Let’s set up the staking parameters to stake 1 ETH. There’s just 1!
+
+```cs
+const stakeParams = {
+  amount: 1,
+};
+```
+
+Under the hood, FunWallets use [**Lido**](https://lido.fi/) as the staking provider. Oftentimes it will be more cost effective to [**swap**](https://docs.fun.xyz/how-to-guides/execute-transactions/swap-tokens) ETH for stETH rather than staking directly.
+
+You can only stake the the native token of the chain you are on. We only support ETH on Ethereum mainnet and Goerli testnet right now. [Contact us](https://discord.gg/8uRGjbmHe9) if you'd like another chain supported.
+
+Now that we’ve specified the parameter for staking, we can create the stake operation and execute it.
+
+```cs
+const stakeOp = await funWallet.stake(auth, userId, stakeParams);
+await funWallet.executeOperation(auth, stakeOp);
+```
+
+## Unstaking
+
+After staking ETH, the ETH is locked in the Lido staking contract so you won’t be able to withdraw it. We have to go through an unstaking process in order to access it again. Let’s walk through the multi-step process.
+
+First, we have to create the unstaking request. These are parameters we need to specify.
+
+1. `amounts` This is the amount of ETH we want to unstake. Notice that we pass it in as an array - this is so that we can request multiple unstaking requests in parallel. For this example, lets just use 1 amount.
+
+2. `recipient` This lets us choose who we want to receive the unstaked ETH. Let’s just use the FunWallet we created above.
+
+```cs
+const requestParams = {
+  amounts: [0.01],
+  recipient: await funWallet.getAddress(),
+};
+```
+
+The minimum unstaking amount is 0.01 ETH.
+
+Next, we send the request to the Lido staking contract to start the unstaking process.
+
+```cs
+const requestOp = await funWallet.unstake(auth, userId, requestParams);
+await funWallet.executeOperation(auth, requestOp);
+```
+
+It takes 2-4 days for the Lido to process the request and this depends on the number of people unstaking with us. Afterwards, we need to claim the unstaked ETH and send it back to the address of our choice. These are parameters we need to specify:
+
+1. `recipient` We’re sending the unstaked ETH back to our FunWallet so let’s use the same address.
+
+2. `walletAddress` This is used to identify the wallet that initially requested the stake which is just the same address.
+
+Then, we send the request back to Lido to finish the unstaking process.
+
+```cs
+const unstakeParams = {
+  recipient: await funWallet.getAddress(),
+  walletAddress: await funWallet.getAddress(),
+};
+
+const unstakeOp = await funWallet.unstake(auth, userId, unstakeParams);
+await funWallet.executeOperation(auth, unstakeOp);
+```
+
+## Summary
+
+Putting together all the pieces, we can create `stake()` that you can use to stake ETH and `unstake()` for unstaking ETH.
+
+### Example: Staking
+
+```cs
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment,
+  generatePrivateKey
+} from "@funkit/core"
+
+const stake = async () => {
+  await configureEnvironment({
+    chain: "goerli",
+    gasSponsor: {
+      sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad"
+    },
+    apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+  })
+
+  const privateKey = generatePrivateKey()
+  const auth = new Auth({
+    privateKey
+  })
+
+  const funWallet = new FunWallet({
+    users: [{
+      userId: await auth.getAddress()
+    }],
+    uniqueId: await auth.getWalletUniqueId()
+  })
+
+  const stakeParams = {
+    amount: 1
+  }
+
+  const stakeOp = await funWallet.stake(auth, await auth.getAddress(), stakeParams)
+  const receipt = await funWallet.executeOperation(auth, stakeOp)
+  console.log(receipt)
+
+};
+
+stake()
+```
+
+### Example: Unstaking
+
+```
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment,
+  generatePrivateKey
+} from "@funkit/core"
+
+const unStake = async () => {
+  await configureEnvironment({
+    chain: "goerli",
+    gasSponsor: {
+      sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad"
+    },
+    apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+  })
+
+  const privateKey = generatePrivateKey()
+  const auth = new Auth({
+    privateKey,
+  })
+
+  const funWallet = new FunWallet({
+    users: [{
+      userId: await auth.getAddress(),
+    }],
+    uniqueId: await auth.getWalletUniqueId(),
+  })
+
+  const requestParams = {
+    amounts: [0.01],
+    recipient: await funWallet.getAddress(),
+  }
+
+  const requestOp = await funWallet.unstake(auth, userId, requestParams)
+  const receipt = await funWallet.executeOperation(auth, requestOp)
+  console.log(receipt)
+
+};
+
+unStake()
+```

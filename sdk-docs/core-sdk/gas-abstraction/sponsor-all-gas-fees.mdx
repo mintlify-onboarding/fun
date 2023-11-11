@@ -1,0 +1,55 @@
+---
+title: "Sponsor all gas fees"
+---
+
+## Overview
+
+All wallets, including FunWallets, need gas to make transactions on an EVM chain. However by adding a gasless sponsor, the sponsor can cover the gas costs for a FunWallet. This option lets your wallet make transactions without gas expenses. In this guide, I’ll show you how to use a gasless sponsor for your FunWallet.
+
+### Import required objects
+
+We have to import `configureEnvironment` to set up the environment.
+
+```cs
+import { configureEnvironment } from "@funkit/core";
+```
+
+### Configuring the FunWallet environment
+
+The FunWallet environment is where we configure the gas settings. I’ll also explain the other environment variables that we need to input:
+
+1. `chain` \- Each FunWallet exists on an [EVM chain](https://ethereum.org/en/developers/docs/evm/), and for this guide, we will be using the Goerli testnet.
+
+2. `gasSponsor` \- Since we are using a Gasless sponsor, we have to provide the address of the sponsor.
+
+3. `apiKey` \- We have provided a rate limited `apiKey` used strictly for demoing purposes. Please visit our [dashboard](https://app.fun.xyz) to receive your own production `apiKey`.
+
+```cs
+configureEnvironment({
+  chain: "goerli",
+  gasSponsor: {
+    sponsorAddress: "0x36fb7E094A269cE5d545c262D60a3D2B862600F4",
+  },
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+Fun offers a publicly-available gasless sponsor on all testnet chains: `0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad`.
+
+For a FunWallet to transact gas-free, the native gas token must be staked in a gasless sponsor contract.
+
+### Summary
+
+Putting together all the pieces we can create an environment where the FunWallet uses a gasless sponsor.
+
+```cs
+import { configureEnvironment } from '@funkit/core'
+
+configureEnvironment({
+  chain: "goerli",
+  gasSponsor: {
+    sponsorAddress: "0x36fb7E094A269cE5d545c262D60a3D2B862600F4"
+  },
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+})
+```

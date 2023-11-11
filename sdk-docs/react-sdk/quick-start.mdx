@@ -1,0 +1,237 @@
+---
+title: "Quick start"
+---
+
+## Overview
+
+The [Funkit React SDK](https://github.com/fun-xyz/funkit-react) is a wrapper around the Core SDK that provides a set of [React Hooks](https://react.dev/learn/reusing-logic-with-custom-hooks) and components to make it easier to integrate Funkit into your React or NextJS application.
+
+Using the React SDK, you can easily manage the state of your Funkit wallets, including managing auths, and creating and using FunKit Smart wallets.
+
+The SDK facilitates a multi-step process towards creating and using FunKit wallets.
+
+The steps are as follows:
+
+1. Use an authentication hook to connect an Auth to the SDK.
+
+2. Use the walletId hook to see if there is an existing FunKit Wallet to use.
+
+3. Use the FunWallet hook to initialize a FunWallet and create a new one if needed.
+
+4. Use the initialized wallet to execute operations.
+
+The Funkit React SDK assumes some prior knowledge of [React](https://react.dev/learn), [React Hooks](https://react.dev/learn/reusing-logic-with-custom-hooks), and [React Contexts](https://react.dev/learn/passing-data-deeply-with-context).
+
+## Installation
+
+```bash
+npm i @funkit/react --save
+# or
+yarn add @funkit/react
+```
+
+## Configure the SDK
+
+The first step is to set the API key and chain you want to use. You can get an API key from our [dashboard](https://app.fun.xyz). Typically, you will want to do this in your app's entry point. We wrap your application in a context provider to ensure that this is set up and configured properly.
+
+To configure the SDK properly, you will need a Funkit configuration object that contains the API key. Read more about configuring the SDK here.
+
+Additionally, to use the privy integration, you will also need to provide a privy app ID. You can obtain this from the [privy dashboard](https://console.privy.io/). The privy app ID allows you to customize the social login behavior and branding.
+
+```java
+import { FunContextProvider, Goerli } from "@funkit/react";
+
+const DEFAULT_FUN_WALLET_CONFIG = {
+  apiKey: "",
+  chain: Goerli,
+};
+
+const PRIVY_APP_ID = "clnatprpv00sfmi0fv3qc185b";
+
+export default function AppWrapper() {
+  return (
+      
+    
+  );
+}
+```
+
+### Ensure that the Buffer object is available
+
+This line ensures that the [Buffer](https://nodejs.org/api/buffer.html) object is available in the global scope. This is crucial for working with low-level data streams in JavaScript. Without the Buffer, social authentication won't function.
+
+```cs
+window.Buffer = window.Buffer || require("buffer").Buffer;
+```
+
+---
+
+## Initialize an Auth
+
+The first step in using a Funkit Smart wallet is to set up an Auth that can sign transactions. Every Funkit wallet requires at least one auth to operate. The React SDK simplifies the initialization of external wallets or authentication methods while managing their state.
+
+Each authentication method has a hook that returns the auth object and functions to log in or log out of the signer.
+
+```cs
+const { active, authAddr, auth, login, logout } = useMetamaskAuth();
+const { active, authAddr, auth, login, logout } = useCoinbaseAuth();
+const { active, authAddr, auth, login, logout } = usePrivyAuth();
+```
+
+Each of the hooks returns the following values: active - a boolean indicating if the auth is active authAddr - the address of the auth auth - the auth object used to sign transactions login - a function to login to the auth logout - a function to logout of the auth
+
+Some Auth hooks, like the `usePrivyAuth` hook, involve more complex operations. For instance, this hook opens a popup window allowing the user to log in to their social account. Social login through OAuth necessitates a redirect to the social provider's website and then back to your application once the user has logged in.
+
+---
+
+## Use the initialized auth to find FunKit Wallets
+
+Funkit wallets are associated to the Auth providers which create them. This means that you can use the initialized auth to find existing FunKit wallets. The React SDK manages this process for you using a hook `useFunWalletIds` which returns a list of walletId of the FunKit wallets associated with the auth.
+
+The hook optionally takes an Auth to fetch the walletIds for. If no auth is provided it will use all the currently initialized auths to fetch the walletIds.
+
+```cs
+const { activeClients, walletIds } = useFunWalletIds();
+```
+
+The hook returns the following values: activeClients - a list of the active auths walletIds - a list of the walletIds associated with the auths
+
+---
+
+## Initialize or create a FunKit Smart Wallet
+
+Once you have an Auth connected you can create or initialize a FunKit Smart Wallet. The React SDK makes this easy using the `useFunWallet` hook.
+
+```cs
+const {
+  funWallet,
+  address,
+  createFunWallet,
+  activateFunWallet,
+  deactivateFunWallet,
+} = useFunWallet();
+```
+
+### Create a new FunWallet
+
+Creating a new FunWallet is easy using the `useFunWallet` hook's built-in `createFunWallet` function.
+
+Simply pass in the auth which you want to own the new FunKit Wallet and the function will generate and initialize the new wallet.
+
+```java
+import { useMetamaskAuth, useFunWallet } from "@funkit/react";
+
+const App = () => {
+  // Making use of MM auth. Alternatively: usePrivyAuth() or useCoinbaseAuth().
+  const { active, auth, login } = useMetamaskAuth();
+  const { wallet, address, createFunWallet } = useFunWallet();
+  const handleCreateFunWallet = async () => {
+    if (auth) {
+      await createFunWallet(auth);
+    }
+  };
+
+  return (
+    
+
+      {address ? (
+        
+FunWallet Active Address: {address}
+
+      ) : (
+        
+FunWallet Not Active
+
+      )}
+      Login Metamask
+      Create FunWallet
+    
+
+  );
+};
+```
+
+### Activate an existing FunWallet
+
+If there is already an existing FunWallet associated with the auth, it can be activated using the `activateFunWallet` function.
+
+First, make sure you have initialized an auth e.g. `useMetamaskAuth`.
+
+Then, use the `useFunWalletIds` hook to fetch the `walletIds` associated with the auth. There can be multiple FunWallets associated to an auth.
+
+Finally, pass the Wallet to the `activateFunWallet` function and it will initialize the wallet.
+
+```java
+import { useMetamaskAuth, useFunWallet } from "@funkit/react";
+
+const App = () => {
+  const { login } = useMetamaskAuth();
+  const { walletIds } = useFunWalletIds();
+  const { wallet, address, activateFunWallet } = useFunWallet();
+
+  return (
+    
+
+      {address ? (
+        
+ FunWallet Active Address: {address} 
+
+      ) : (
+        
+FunWallet Not Active
+
+      )}
+      Login Metamask
+      {walletIds &&
+        walletIds.length > 0 &&
+        walletIds.map((account: Wallet, index) => {
+          return (
+
+              {index + 1}
+              Account: {account.walletAddr}
+               {
+                  activateFunWallet(account);
+                }}
+              >
+                Initialize Wallet
+
+          );
+        })}
+    
+
+  );
+};
+```
+
+---
+
+## Execute operations using the FunKit wallet
+
+Once you have an initialized FunKit wallet you can use it to execute operations. The React SDK provides a set of hooks to make this easy. This includes a hook to process first class actions like transfer or swap and hooks to manage existing operations.
+
+* `useAction` \- a hook to execute first class actions like transfer, swap, stake, etc.
+
+* `useOperations` \- a hook to manage existing operations
+
+* `useRBAC` \- a hook to manage Ownership and permissions
+
+Here is an example for processing most operations using the `useAction` hook.
+
+```java
+import { useAction, ActionType } from "@funkit/react";
+
+const App = () => {
+  const { executeOperation, ready, result } = useAction({
+    action: ActionType.Transfer,
+    params: { to: "0x000", amount: 0.1, token: "ETH" },
+  });
+
+  return (
+    
+
+      Execute Operation
+    
+
+  );
+};
+```

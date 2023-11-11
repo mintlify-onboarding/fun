@@ -1,0 +1,450 @@
+---
+title: "Swap, transfer, and stake"
+---
+
+![](/images/reactsdk-example.png)
+
+## Overview
+
+Find the sample app for this demo [here](https://codesandbox.io/p/github/TheFunGroup/Action-Web-Demo/main?file=/src/index.js:1,1).
+
+Typically swapping tokens is a complicated process. You have to use a library like ethers to connect to a blockchain, approve a decentralized exchange smart contract to interact with your wallet, and execute the swap by calling the appropriate function.
+
+Our ReactSDK enables swap functionality with seamless react hooks.
+
+In this sample app I'll show you how. This guide will assume some basic knowledge covered in the Quick Start but I’ll quickly walk through all the steps again.
+
+## Configure project
+
+### Import required functions and objects
+
+* `FunContextProvider` – The React Context Provider for the FunSDK. Used to set the configuration and API keys.
+
+* `Goerli` – A constant or configuration object for the Goerli testnet.
+
+* `useMetamaskAuth` – The MetaMask Auth hook used to login and logout.
+
+* `useFunWallet` – The primary React hook for creating and managing FunWallets.
+
+* `useAction` – A custom React hook which enables creating and executing operation.
+
+* `ActionType` \- A utility enum with the built in action types used to build operations.
+
+* `ExecutionReceipt` \- The interface returned upon the successful execution of a operation.
+
+```java
+import {
+  FunContextProvider,
+  Goerli,
+  useMetamaskAuth,
+  useFunWallet,
+  useAction,
+  ActionType,
+  ExecutionReceipt,
+} from "@funkit/react";
+import { useEffect, useState } from "react";
+import { sendGetRequest } from "@funkit/core";
+```
+
+### Configure environment
+
+The wallet configuration object for the ReactSDK is identical to the CoreSDK. Read the config section for more.
+
+```cs
+const DEFAULT_FUN_WALLET_CONFIG = {
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+  chain: Goerli,
+  gasSponsor: {
+    sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad",
+  },
+};
+```
+
+### Setup Context provider
+
+In order to use the react SDK you need to wrap your application in our context provider and pass in the configuration object.
+
+If you want to use the social auth functionality, you need to pass in the `appId` as well. This can be generated through privy and is used to identify your application. The AppId also allows you to customize the branding of the social auth experience.
+
+You can get this from the [privy dashboard](https://console.privy.io/).
+
+```cs
+const PRIVY_APP_ID = "clnatprpv00sfmi0fv3qc185b";
+
+export default function AppWrapper() {
+  return (
+      
+    
+  );
+}
+```
+
+### Ensure buffer object is available
+
+This line ensures the [Buffer](https://nodejs.org/api/buffer.html) object is available in the global scope, which is important for working with low-level data streams in js. Without the Buffer, social auth will not work.
+
+```cs
+window.Buffer = window.Buffer || require("buffer").Buffer;
+```
+
+## Create our App
+
+### Setup Auth provider
+
+The `useMetamaskAuth` hook provides an easy hook for Connecting to Metamask wallets and using them to build an Auth. The React SDK manages the auth for you making it easy to use.
+
+Calling the login function will automatically open the social auth modal and allow the user to select their preferred auth method.
+
+```cs
+const { active, authAddr, auth, login, logout } = useMetamaskAuth();
+```
+
+All of the hooks return the same values:
+
+* `active` – A boolean which indicates if the auth is active.
+
+* `authAddr` – The address of the auth.
+
+* `auth` – The auth object.
+
+* `login` – A function which can be called to login.
+
+* `logout` – A function which can be called to logout.
+
+You can also use all of the auth hooks at the same time and be connected to more than one web3 or web2 auth provider at the same time.
+
+We than use the login method in our application to prompt a User to login before going to the next step.
+
+### Initialize the account for FunWallet interactions
+
+```cs
+const {
+  funWallet,
+  address,
+  createFunWallet,
+  activateFunWallet,
+  deactivateFunWallet,
+} = useFunWallet();
+```
+
+#### Returned Values:
+
+* `funWallet`: An object or instance related to the FunWallet.
+
+* `address`: The address for the FunWallet.
+
+* `createFunWallet`: A function to initialize a new FunWallet account.
+
+* `activateFunWallet`: A function to initialize an existing FunWallet account.
+
+* `deactivateFunWallet`: A function to reset the SDK so you can activate a new wallet.
+
+We can than create a function which when called will generate and initialize a new FunWallet. This function will take an `Auth` defined by the `usePrivyAuth` hook.
+
+```cs
+async function step2CreateWallet() {
+  if (!active || !auth) {
+    alert("Privy not connected. Please follow the steps in order.");
+    return;
+  }
+  createFunWallet(auth).catch();
+}
+```
+
+### Set & initialize states
+
+These state variables provide a way to manage dynamic data in the application:
+
+* `txIds` – Keeps track of blockchain transaction IDs, enabling lookups and status checks.
+
+* `loadings` – Manages the loading states for various operations, providing user feedback.
+
+* `balance` – Holds the balance information for the wallet's various accounts or tokens.
+
+* `auth` – Holds the current CoreSDK Auth object generated by the connector.
+
+By using these state variables, the sample app can more easily respond to changes, such as when a new transaction is initiated, when a loading state changes, or when a balance is updated.
+
+```cs
+const [txIds, setTxIds] = useState({});
+const [loadings, setLoadings] = useState({});
+const [balance, setBalance] = useState({});
+const [auth] = usePrimaryAuth();
+```
+
+### Automatically fetch balances when content changes
+
+Here we use React's useEffect hook to fetch the balance for a set of tokens from the FunWallet whenever txIds or funWallet state variables change.
+
+Note, that the effect will re-run every time txIds or funWallet changes.
+
+In summary, this useEffect hook:
+
+1. Listens for changes in `txIds` and `funWallet`.
+
+2. On change, it fetches the address associated with `funWallet`.
+
+3. It then fetches the balance for each token in the tokens array for that wallet address.
+
+4. Updates the balance state with the new balances.
+
+This way, the sample app keeps the balance state up-to-date whenever there's a new transaction or the `funWallet` object changes.
+
+```cs
+useEffect(() => {
+  const getBalance = async () => {
+    if (funWallet) {
+      const walletAddr = await funWallet.getAddress();
+      let out = { ...balance };
+      await Promise.all(
+        tokens.map(async (token) => {
+          out[token] = await Token.getBalance(token, walletAddr);
+        })
+      );
+      setBalance(out);
+    }
+  };
+  getBalance();
+}, [txIds, funWallet]);
+```
+
+## Fund the new wallet
+
+The newly created wallet has no funds in it. We need to fund it with some ETH to be able to execute operations.
+
+```cs
+const step3PrefundFunWallet = async () => {
+  if (!funWallet) {
+    alert("FunWallet not initialized. Please follow the steps in order.");
+    return;
+  }
+  const { txHash } = await sendGetRequest(
+    API_BASE_URL,
+    `demo-faucet/get-faucet?token=eth&testnet=goerli&addr=${await funWallet.getAddress()}`,
+    DEFAULT_FUN_WALLET_CONFIG.apiKey
+  );
+  setStep(3);
+  setTxIds({ ...txIds, prefund: txHash });
+};
+```
+
+## Use the Smart wallet to execute operations
+
+Executing operations using the react SDK is easy with the `useAction` hook. This hook takes in an `ActionType` and an `Auth` object and returns a function which can be called to execute the operation.
+
+### Swap Operation
+
+In this example we want to prepare a swap operation between ETH that we just funded and USDC. We can do this by calling the `useAction` hook with the `ActionType.Swap` and the appropriate parameters.
+
+```cs
+const { executeOperation: executeSwapOperation, ready: actionSwapReady } =
+  useAction({
+    action: ActionType.Swap,
+    params: {
+      tokenIn: "eth",
+      tokenOut: "usdc",
+      inAmount: 0.001,
+    },
+  });
+```
+
+The use action hook returns some helpful information about the operation:
+
+* `executeOperation` – A function which can be called to execute the operation.
+
+* `ready` – A boolean which indicates if the operation is ready to be executed.
+
+* `result` – The result of the operation.
+
+### Execute the Swap Operation
+
+You can pass the specific auth you want to use to sign for the operation. In this case we want to use the auth we got from the social auth hook. However the react SDK makes this easy by manaing the active auths for you. If you don't pass in an auth it will use the active auths for the current FunKit wallet.
+
+```cs
+async function step4SwapEth() {
+  if (!actionSwapReady || !funWallet) {
+    alert("FunWallet not initialized. Please follow the steps in order.");
+    return;
+  }
+  const receipt: ExecutionReceipt = await executeSwapOperation();
+  setStep(4);
+  setTxIds({ ...txIds, swap: receipt.txId });
+}
+```
+
+### Transfer Operation
+
+Next we will transfer some ETH to another address. We can do this by calling the `useAction` hook with the `ActionType.Transfer` and the appropriate parameters.
+
+```cs
+const {
+  executeOperation: executeTransferOperation,
+  ready: actionTransferReady,
+} = useAction({
+  action: ActionType.Transfer,
+  params: {
+    token: TokenTickers.ETH,
+    to: authAddr,
+    amount: 0.001,
+  },
+});
+
+async function step5TransferEth() {
+  if (!actionTransferReady || !funWallet) {
+    alert("FunWallet not initialized. Please follow the steps in order.");
+    return;
+  }
+  const receipt: ExecutionReceipt = await executeTransferOperation();
+  setStep(5);
+  setTxIds({ ...txIds, transfer: receipt.txId });
+}
+```
+
+### Next create a Stake Operation
+
+```cs
+const { executeOperation: executeStakeOperation, ready: actionStakeReady } =
+  useAction({
+    action: ActionType.Stake,
+    params: {
+      amount: 0.001,
+    },
+  });
+
+async function step6StakeEth() {
+  if (!actionStakeReady || !funWallet) {
+    alert("FunWallet not initialized. Please follow the steps in order.");
+    return;
+  }
+  const receipt: ExecutionReceipt = await executeStakeOperation();
+  setStep(6);
+  setTxIds({ ...txIds, stake: receipt.txId });
+}
+```
+
+## Add in your app specific code
+
+We have a memo hook to style each step item based on the state.
+
+```java
+// Build the step items
+const stepItems = useMemo(() => {
+  return [
+    {
+      title: "Connect MetaMask",
+      actionTitle: "Connect",
+      actionOnClick: step1ConnectMetaMask,
+      switchCondition: !!active,
+      completeContent: 
+
+Connected! You are now ready to use FunWallet
+
+,
+    },
+    {
+      title: "Initialize FunWallet",
+      actionTitle: "Initialize",
+      actionOnClick: step2InitializeWallet,
+      switchCondition: !!address,
+      completeContent: (
+
+            Success! FunWallet Address:
+            
+               {address}.
+
+          {/* Optional: Keep track of fun wallet's token balance */}
+          {/* 
+            
+
+Wallet balance: 
+
+            {TOKEN_LIST.map((token) => (
+
+                 {funWalletBalance[token] ?? 0} {token} 
+
+            ))}{" "}
+          
+
+ */}
+        
+      ),
+    },
+    {
+      title: "Add test ETH to FunWallet",
+      actionTitle: "Prefund",
+      actionOnClick: step3PrefundFunWallet,
+      switchCondition: !!txIds.prefund,
+      completeContent: ,
+    },
+    {
+      title: "Swap 0.001 ETH to USDC with a FunWallet",
+      actionTitle: "Swap",
+      actionOnClick: step4SwapEth,
+      switchCondition: !!txIds.swap,
+      completeContent: ,
+    },
+    {
+      title: "Transfer 0.001 ETH with a FunWallet",
+      actionTitle: "Transfer",
+      actionOnClick: step5TransferEth,
+      switchCondition: !!txIds.transfer,
+      completeContent: ,
+    },
+    {
+      title: "Stake 0.001 ETH to Lido with a FunWallet",
+      actionTitle: "Stake",
+      actionOnClick: step6StakeEth,
+      switchCondition: !!txIds.stake,
+      completeContent: ,
+    },
+  ];
+}, [
+  active,
+  step,
+  address,
+  txIds,
+  // funWalletBalance,
+  step1ConnectMetaMask,
+  step2InitializeWallet,
+  step3PrefundFunWallet,
+  step4SwapEth,
+  step5TransferEth,
+  step6StakeEth,
+]);
+```
+
+```
+return (
+    
+      
+[
+        Swap, Transfer, and Stake with a FunWallet
+      ]
+
+      
+        {stepItems.map((stepItem, idx) => (
+            
+
+[{stepItem.title}]
+
+            {stepItem.switchCondition ? (
+              stepItem.completeContent
+            ) : (
+               stepItem.actionOnClick?.()}
+                disabled={step < idx}
+                title={stepItem.actionTitle}
+              />
+            )}
+
+        ))}
+
+  
+);
+```
+
+## Summary
+
+Find the complete project [here](https://codesandbox.io/p/github/TheFunGroup/Action-Web-Demo/main?file=/src/initializeBasicFunWallet.js)!
+
+![](/images/reactsdk-example.png)
+

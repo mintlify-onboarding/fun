@@ -1,0 +1,131 @@
+---
+title: "Create wallet"
+---
+
+## Overview
+
+Fun Wallet is the core class of the FunKit SDK. It enables you to execute any transaction on an EVM chain and provides a straightforward method for implementing robust authentication schemes. In this guide, I will show you how to create a Fun Wallet using a private key.
+
+### Import required objects
+
+We have to import three objects in order to create a `FunWallet`.
+
+1. `FunWallet` to create the object.
+
+2. `configureEnvironment` to set up the environment for a FunWallet.
+
+3. `Auth` for authenticating into a Fun Wallet.
+
+```cs
+import {
+  FunWallet,
+  configureEnvironment,
+  Auth,
+  generatePrivateKey,
+} from "@funkit/core";
+```
+
+### Configure the wallet environment
+
+To begin, we need to set up the environment for your Fun Wallet. This is boilerplate code, but I will show you the process so that you can make adjustments in the future.
+
+Let me explain the environment variables that we will need to input.
+
+1. `chain` \- Each Fun Wallet exists on an [EVM-compatible blockchain](https://ethereum.org/en/developers/docs/evm/), and for this guide, we will be using the Goerli testnet.
+
+2. `gasSponsor` – All wallets have to pay gas to execute transactions on a blockchain and Fun Wallets are no exception to that. But Fun Wallets also have the option of a gas sponsor that can cover the gas cost. For this guide, we will use a gasless sponsor that has been created for Goerli.
+
+3. `apiKey` – We have provided a rate limited `apiKey` used strictly for demoing purposes. Please visit our [dashboard](http://app.fun.xyz) to create your own `gasSponsor` or to receive production `apiKey`.
+
+```cs
+await configureEnvironment({
+  chain: "goerli",
+  gasSponsor: {
+    sponsorAddress: "0x175C5611402815Eba550Dad16abd2ac366a63329",
+  },
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+Please note that the use of a \`gasSponsor\` is tied to your \`apiKey\`.
+
+### Creating Auth with a private key
+
+Now that we’ve set up the environment, we need a way to sign transactions. All authentication in FunKit is handled with the `Auth` object. We’ll use a private key as the authentication method and I’ll provide us with one. A private key for Ethereum consists of a 256-bit integer, and there are [multiple methods](https://www.geeksforgeeks.org/how-to-create-an-ethereum-wallet-address-from-a-private-key/) for generating one.
+
+```cs
+const privateKey = generatePrivateKey();
+const auth = new Auth({ privateKey });
+```
+
+### Initializing Fun Wallet with Auth
+
+With the `Auth` instance that we created in the step before, we are now able to initialize your `FunWallet`. Here are the `FunWallet` parameters:
+
+1. `users` \- This is an `User[]` that holds all `users` that can access your `FunWallet`. Since we’re only using 1 private key, our `User[]` only has 1 instance.
+
+2. `uniqueId` \- This is a random seed that is generated from our `Auth` instance. The purpose of this seed is the generate the `address` of our `FunWallet`.
+
+```cs
+const privateKey: string =
+  "0x1bfda777ddaf097a791e98ea9bb8923f33f9a9e93c4ec3b0d8370de10782a825";
+const auth = new Auth({ privateKey });
+
+const funWallet = new FunWallet({
+  users: [{ userId: auth.getAddress() }],
+  uniqueId: auth.getWalletUniqueId(),
+});
+```
+
+You can initialize the Fun Wallet object and send assets to its address without the FunWallet being created on chain. This means if another party creates the same Fun Wallet before you, then they will be able to claim those assets. This is particularly relevant when you’re creating a Fun Wallet across multiple chains.
+
+### Creating FunWallet
+
+The final step is call `.create()`. This will execute a transaction on the Goerli testnet (`chain`)to deploy your `FunWallet` .
+
+```cs
+const op = await funWallet.create(auth, await auth.getAddress());
+await funWallet.executeOperation(auth, op);
+```
+
+Alternatively your `FunWallet` can be automatically created on the first transaction like `transfer` or `swap`.
+
+```cs
+const transferOp = await funWallet.transfer(auth, userId, {
+  to: "0x2f318C334780961FB129D2a6c30D0763d9a5C970",
+  token: "eth",
+  amount: 1,
+});
+await funWallet.executeOperation(auth, transferOp);
+```
+
+## Summary
+
+Putting together all the pieces we have `createWallet()` that you can use to create your Fun Wallet.
+
+```cs
+import { FunWallet, Auth, configureEnvironment, generatePrivateKey } from '@funkit/core'
+
+const createWallet = async () => {
+  await configureEnvironment({
+    chain: "goerli",
+    gasSponsor: {
+      sponsorAddress: "0x175C5611402815Eba550Dad16abd2ac366a63329",
+    },
+    apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+  })
+
+  const privateKey = generatePrivateKey()
+  const auth = new Auth({ privateKey })
+
+  const funWallet = new FunWallet({
+    users: [{ userId: await auth.getAddress() }],
+    uniqueId: await auth.getWalletUniqueId(),
+  })
+
+  const op = await funWallet.create(auth, await auth.getAddress())
+  await funWallet.executeOperation(auth, op)
+}
+
+createWallet()
+```

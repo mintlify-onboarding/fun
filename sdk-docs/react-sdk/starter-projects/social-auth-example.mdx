@@ -1,0 +1,308 @@
+---
+title: "Social auth example"
+---
+
+![](/images/reactsdk-web2.png)
+
+## Overview
+
+Find the sample app for this demo [here](https://codesandbox.io/p/github/fun-xyz/Social-Web-Demo/main?file=/src/app.js).
+
+Web2 authentication features for crypto wallets encompass conventional methods like social login, email verification, security questions, and two-factor authentication (2FA).
+
+These tools are used to secure user accounts and grant access to crypto wallet services.
+
+Our ReactSDK enables safe and convenient web2 auth functionality with FunWallets.
+
+In this sample app I'll show you how. This guide will assume some basic knowledge covered in the Quick Start but I’ll quickly walk through all the steps again.
+
+## Configure project
+
+### Import required functions and objects
+
+* `FunContextProvider` – The React Context Provider for the FunSDK. Used to set the configuration and API keys.
+
+* `Goerli` – A constant or configuration object for the Goerli testnet.
+
+* `usePrivyAuth` – The Social Auth hook used to login and logout.
+
+* `useFunWallet` – The primary React hook for creating and managing FunWallets.
+
+* `useAction` – A custom React hook which enables creating and executing operation.
+
+* `ActionType` \- A utility enum with the built in action types used to build operations.
+
+* `ExecutionReceipt` \- The interface returned upon the successful execution of a operation.
+
+```cs
+"use client"; // All React hooks need to be used in a client context
+import {
+  FunContextProvider,
+  Goerli,
+  usePrivyAuth,
+  useFunWallet,
+  useAction,
+  ActionType,
+  ExecutionReceipt,
+} from "@funkit/react";
+```
+
+### Configure environment
+
+The wallet configuration object for the ReactSDK is identical to the CoreSDK. Read the config section for more.
+
+```cs
+const DEFAULT_FUN_WALLET_CONFIG = {
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+  chain: Goerli,
+  gasSponsor: {
+    sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad",
+  },
+};
+```
+
+### Setup Context provider
+
+In order to use the react SDK you need to wrap your application in our context provider and pass in the configuration object.
+
+If you want to use the social auth functionality, you need to pass in the `appId` as well. This can be generated through privy and is used to identify your application. The AppId also allows you to customize the branding of the social auth experience.
+
+You can get this from the [privy dashboard](https://console.privy.io/).
+
+```cs
+const PRIVY_APP_ID = "clnatprpv00sfmi0fv3qc185b";
+
+export default function AppWrapper() {
+  return (
+      
+    
+  );
+}
+```
+
+### Ensure buffer object is available
+
+This line ensures the [Buffer](https://nodejs.org/api/buffer.html) object is available in the global scope, which is important for working with low-level data streams in js. Without the Buffer, social auth will not work.
+
+```cs
+window.Buffer = window.Buffer || require("buffer").Buffer;
+```
+
+## Create our App
+
+### Setup Auth provider
+
+The `usePrivyAuth` hook provides an easy hook for initializing social auth through privy and managing the auth state.
+
+Calling the login function will automatically open the social auth modal and allow the user to select their preferred auth method.
+
+```
+const { active, authAddr, auth, login, logout } = usePrivyAuth();
+```
+
+We than use the login method in our application to prompt a User to login before going to the next step.
+
+### Initialize the account for FunWallet interactions
+
+```cs
+const {
+  funWallet,
+  address,
+  createFunWallet,
+  activateFunWallet,
+  deactivateFunWallet,
+} = useFunWallet();
+```
+
+#### Returned Values:
+
+* `funWallet`: An object or instance related to the FunWallet.
+
+* `address`: The address for the FunWallet.
+
+* `createFunWallet`: A function to initialize a new FunWallet account.
+
+* `activateFunWallet`: A function to initialize an existing FunWallet account.
+
+* `deactivateFunWallet`: A function to reset the SDK so you can activate a new wallet.
+
+We can than create a function which when called will generate and initialize a new FunWallet. This function will take an `Auth` defined by the `usePrivyAuth` hook.
+
+```cs
+async function step2CreateWallet() {
+  if (!active || !auth) {
+    alert("Privy not connected. Please follow the steps in order.");
+    return;
+  }
+  createFunWallet(auth).catch();
+}
+```
+
+Once this function is called a wallet has been generated and fund can be sent to its address on the blockchain.
+
+### Set & initialize states
+
+These state variables provide a way to manage dynamic data in the application:
+
+* `txIds` – Keeps track of blockchain transaction IDs, enabling lookups and status checks.
+
+* `step` – Tracks which step in the process we are in
+
+```cs
+// Keeping track of our transaction states
+const [receiptTxId, setReceiptTxId] = useState("");
+const [step, setStep] = useState(0);
+```
+
+## Use the Smart wallet to execute operations
+
+Executing operations using the react SDK is easy with the `useAction` hook. This hook takes in an `ActionType` and an `Auth` object and returns a function which can be called to execute the operation.
+
+In this example we just generated a new Wallet but for the wallet to be fully initialized it needs to make a transaction. Any Operation will cause the smart wallet to be initialized on chain. However the SDK comes with a create operation which will initialize the smart contract on chain and permanently create the wallet.
+
+```cs
+const { executeOperation, ready, result } = useAction({
+  action: ActionType.create,
+  params: null,
+});
+```
+
+The use action hook returns some helpful information about the operation:
+
+* `executeOperation` – A function which can be called to execute the operation.
+
+* `ready` – A boolean which indicates if the operation is ready to be executed.
+
+* `result` – The result of the operation.
+
+### Execute the Operation
+
+You can pass the specific auth you want to use to sign for the operation. In this case we want to use the auth we got from the social auth hook. However the react SDK makes this easy by manaing the active auths for you. If you don't pass in an auth it will use the active auths for the current FunKit wallet.
+
+```cs
+async function step3SendTransaction() {
+  if (!ready) {
+    alert("FunWallet not initialized. Please follow the steps in order.");
+    return;
+  }
+
+  const op = (await executeOperation(auth)) as ExecutionReceipt;
+  if (!op) return;
+  setReceiptTxId(op.txId as string);
+}
+```
+
+### Add in your app specific code
+
+```cs
+return (
+    
+      
+[Create FunWallet with Social Auth]
+
+      
+        {/* ========================================================================
+                                  STEP 1: CONNECT A privy Signer
+          ======================================================================== */}
+          
+
+[
+            {active ? "Social auth connected!" : "Connect using Social auth"}
+          ]
+
+          {active ? (
+            <>
+              
+
+ You are now ready to use FunWallet 
+
+               {
+                  logout();
+                }}
+                disabled={false}
+              >
+                
+
+logout
+
+              
+            </>
+          ) : (
+             {
+                await step1ConnectPrivy();
+                setStep(1);
+              }}
+              disabled={false}
+            >
+              
+
+Connect
+
+            
+          )}
+        
+
+        {/* ========================================================================
+                                    STEP 2: CREATE WALLET
+          ======================================================================== */}
+          
+
+[Initialize FunWallet]
+
+          {address ? (
+            
+
+Success! FunWallet Address: {address}
+
+          ) : (
+             {
+                await step2CreateWallet();
+                setStep(2);
+              }}
+            >
+              
+
+Initialize
+
+            
+          )}
+        
+
+        {/* ========================================================================
+                                    STEP 3: SEND TRANSACTION
+          ======================================================================== */}
+          
+
+[ Create FunWallet ]
+
+           {
+              await step3SendTransaction();
+              setStep(3);
+            }}
+          >
+            
+
+Create
+
+          
+          {receiptTxId && (
+
+              
+                Transaction submitted!
+              {" "}
+              View wallet on{" "}
+              
+                block explorer.
+
+          )}
+
+  
+);
+```
+
+## Summary
+
+Find the complete project [here](https://codesandbox.io/p/github/fun-xyz/Social-Web-Demo/main?file=/src/app.js)!
+
+![](/images/reactsdk-web2.png)
+

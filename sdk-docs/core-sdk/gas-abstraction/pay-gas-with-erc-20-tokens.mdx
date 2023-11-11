@@ -1,0 +1,101 @@
+---
+title: "Pay gas with ERC-20 tokens"
+---
+
+### Overview
+
+FunWallet needs payment for gas to perform actions on an EVM chain. Each chain has its own native token, like Ethereum's token (ETH), and Polygon's token (Matic). Traditionally, native tokens have always been used to cover gas costs on their respective blockchains, with few exceptions. However, FunWallets now offer a unique feature: the ability to use any ERC-20 token, such as USDC, to pay for gas. In this guide, I'll explain how to use a gas sponsor to use USDC to pay for gas.{" "}
+
+### Import required objects
+
+We have to import `configureEnvironment` to set up the environment.
+
+```cs
+import { configureEnvironment } from "@funkit/core";
+```
+
+### Configuring the FunWallet environment
+
+The FunWallet environment is where we configure the gas settings for a FunWallet. Let me explain the environment variables that we need to input:
+
+1. `chain` \- Each FunWallet exists on an [EVM chain](https://ethereum.org/en/developers/docs/evm/), and for this guide, we will be using the Goerli testnet.
+
+2. `apiKey` \- We have provided a rate limited `apiKey` used strictly for demoing purposes. Please visit our [dashboard](https://app.fun.xyz) to receive your own production `apiKey`.
+
+```cs
+await configureEnvironment({
+  chain: "goerli",
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+There are also gas specific parameters that we need:
+
+1. `sponsorAddress` \- This is the address of the gas sponsor. The gas sponsor is smart contract on that holds the native token (Ethereum) that can used for pay for a transaction.
+
+2. `token` \- This is the ERC-20 token that we want to use. In this example, it’ll be USDC.
+
+3. `usePermit` \- This enables the paymaster to withdraw the appropriate amount of USDC from your wallet to cover the transaction.
+
+```cs
+await configureEnvironment({
+  gasSponsor: {
+    sponsorAddress: "0x40C0cCa76088D45106c2D74D0B4B6405865f22De",
+    token: "usdc",
+    usePermit: true,
+  },
+});
+```
+
+Fun offers a publicly-available USDC sponsor on the all chains: `0x40C0cCa76088D45106c2D74D0B4B6405865f22De`.
+
+### Summary
+
+Putting together all the pieces we can create a FunWallet environment where the gas is paid in USDC.
+
+```cs
+import { configureEnvironment } from '@funkit/core'
+
+await configureEnvironment({
+  chain: "goerli",
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+  gasSponsor: {
+    sponsorAddress: "0x40C0cCa76088D45106c2D74D0B4B6405865f22De",
+    token: "usdc",
+    usePermit: true,
+  },
+})
+```
+
+## Pay gas with ERC-20s without PERMIT (Advanced)
+
+For advanced developers with an opinionated stance on the `PERMIT` smart contract, you can optionally manually approve paymaster spending.
+
+When a FunWallet executes a transaction paying for gas in ERC-20s, the paymaster contract first calculates the amount of gas the transaction will take, then checks an oracle price feed to get the exchange rate between the native gas token & the ERC-20 token intended to pay gas in. Finally, the paymaster contract transfers the necessary ERC-20s from the FunWallet to itself. In order for the paymaster contract to be able to do this, the FunWallet must give token spend approval to the paymaster contract.
+
+```cs
+//erc20-gas.js
+await configureEnvironment({
+  chain: config.chainId,
+  apiKey: apiKey,
+  gasSponsor: {
+    sponsorAddress: funderAddress,
+    token: paymasterToken,
+    usePermit: false,
+  },
+});
+
+// use if Permit is false
+const approveUSDC = await sponsor.approve(
+  funderAddress,
+  paymasterToken,
+  paymasterTokenStakeAmount
+);
+const depositUSDC = await sponsor.stakeToken(
+  funderAddress,
+  paymasterToken,
+  walletAddress,
+  paymasterTokenStakeAmount
+);
+await funder.sendTxs([approveUSDC, depositUSDC]);
+```

@@ -1,0 +1,115 @@
+{
+    "name": "Fun",
+    "logo": {
+      "light": "/logo/light.png",
+      "dark": "/logo/dark.png"
+    },
+    "favicon": "/favicon.png",
+    "colors": {
+      "primary": "#0E0E0E",
+      "light": "#FAFAFA",
+      "dark": "#0E0E0E"
+    },
+    "topbarCtaButton": {
+      "name": "Sign up",
+      "url": "https://app.fun.xyz/sign-in/create"
+    },
+    "topbarLinks": [
+      {
+        "name": "Login",
+        "url": "https://app.fun.xyz/sign-in"
+      }
+    ],
+    "anchors": [
+      {
+        "name": "GitHub",
+        "icon": "github",
+        "url": "https://github.com/fun-xyz"
+      },
+      {
+        "name": "Twitter",
+        "icon": "twitter",
+        "url": "https://twitter.com/fun"
+      }
+    ],
+    "primaryTab": {
+        "name": "React SDK"
+    },
+    "tabs": [
+        {
+            "name": "Core SDK",
+            "url": "sdk-docs/core-sdk"
+        },
+        {
+            "name": "Knowledge Base",
+            "url": "sdk-docs/knowledge-base"
+        }
+    ],
+    "navigation": [
+        {
+            "group": "React SDK",
+            "pages": [
+              "sdk-docs/react-sdk/intro",
+              "sdk-docs/react-sdk/quick-start",
+              {
+                "group": "Starter projects",
+                "pages": [
+                    "sdk-docs/react-sdk/starter-projects/starter-projects",
+                    "sdk-docs/react-sdk/starter-projects/social-auth-example",
+                    "sdk-docs/react-sdk/starter-projects/web3-auth-example",
+                    "sdk-docs/react-sdk/starter-projects/swap--transfer--and-stake"
+                ]
+              }
+            ]
+          },
+          {
+            "group": "Core SDK",
+            "pages": [
+              "sdk-docs/core-sdk/intro",
+              "sdk-docs/core-sdk/quick-start",
+              {
+                "group": "SDK configuration",
+                "pages": [
+                    "sdk-docs/core-sdk/sdk-configuration/sdk-configuration",
+                    "sdk-docs/core-sdk/sdk-configuration/chain-configuration",
+                    "sdk-docs/core-sdk/sdk-configuration/fee-configuration"
+                ]
+              },
+              {
+                "group": "Gas abstraction",
+                "pages": [
+                    "sdk-docs/core-sdk/gas-abstraction/gas-abstraction",
+                    "sdk-docs/core-sdk/gas-abstraction/pay-gas-in-native-token",
+                    "sdk-docs/core-sdk/gas-abstraction/pay-gas-with-erc-20-tokens",
+                    "sdk-docs/core-sdk/gas-abstraction/sponsor-all-gas-fees"
+                ]
+              },
+              {
+                "group": "Transactions",
+                "pages": [
+                    "sdk-docs/core-sdk/transactions/transactions",
+                    "sdk-docs/core-sdk/transactions/create-wallet",
+                    "sdk-docs/core-sdk/transactions/transfer-tokens-and-nfts",
+                    "sdk-docs/core-sdk/transactions/swap-tokens",
+                    "sdk-docs/core-sdk/transactions/stake-tokens",
+                    "sdk-docs/core-sdk/transactions/place-limit-orders",
+                    "sdk-docs/core-sdk/transactions/batch-transactions",
+                    "sdk-docs/core-sdk/transactions/arbitrary-transactions"
+                ]
+              }
+            ]
+          },
+          {
+            "group": "Knowledge Base",
+            "pages": [
+              "sdk-docs/knowledge-base/account-abstraction",
+              "sdk-docs/knowledge-base/error-codes"
+            ]
+          }
+    ],
+    "footerSocials":
+      {
+          "twitter": "https://twitter.com/fun",
+          "linkedin": "https://www.linkedin.com/company/funxyz/"
+      }
+  }

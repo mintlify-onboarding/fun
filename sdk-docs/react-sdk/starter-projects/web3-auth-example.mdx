@@ -1,0 +1,317 @@
+---
+title: "Web3 auth example"
+---
+
+![](/images/reactsdk-web3.png)
+
+## Overview
+
+Find the sample app for this demo [here](https://codesandbox.io/p/github/fun-xyz/Single-Auth-Web-Demo/main?file=/src/app.js).
+
+Web3 authentication for crypto wallets involves leveraging blockchain technology and cryptographic methods to enhance security and user control.
+
+Users sign transactions and messages using their private keys, enabling secure access to wallets and decentralized applications (dApps) such as MetaMask, which Fun integrates.
+
+This approach minimizes phishing risks, provides stronger user identity verification, and aligns with the decentralized ethos of blockchain technology.
+
+In this sample app I'll show you how. This guide will assume some basic knowledge covered in the Quick Start but I’ll quickly walk through all the steps again.
+
+## Configure project
+
+### Import required functions and objects
+
+* `FunContextProvider` – The React Context Provider for the FunSDK. Used to set the configuration and API keys.
+
+* `Goerli` – A constant or configuration object for the Goerli testnet.
+
+* `useMetamaskAuth` – The MetaMask Auth hook used to login and logout.
+
+* `useCoinbaseAuth` – The Coinbase Auth hook used to login and logout.
+
+* `useWalletConnectAuth` – The WalletConnect Auth hook used to login and logout.
+
+* `useFunWallet` – The primary React hook for creating and managing FunWallets.
+
+* `useAction` – A custom React hook which enables creating and executing operation.
+
+* `ActionType` \- A utility enum with the built in action types used to build operations.
+
+* `ExecutionReceipt` \- The interface returned upon the successful execution of a operation.
+
+```java
+"use client"; // All React hooks need to be used in a client context
+import {
+  FunContextProvider,
+  configureNewFunStore,
+  Goerli,
+  useMetamaskAuth,
+  useFunWallet,
+  useAction,
+  ActionType,
+  ExecutionReceipt,
+} from "@funkit/react";
+```
+
+### Configure environment
+
+The wallet configuration object for the ReactSDK is identical to the CoreSDK. Read the config section for more.
+
+```java
+const DEFAULT_FUN_WALLET_CONFIG = {
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+  chain: Goerli,
+  gasSponsor: {
+    sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad",
+  },
+};
+```
+
+### Setup Context provider
+
+In order to use the react SDK you need to wrap your application in our context provider and pass in the configuration object.
+
+If you want to use the social auth functionality, you need to pass in the `appId` as well. This can be generated through privy and is used to identify your application. The AppId also allows you to customize the branding of the social auth experience.
+
+You can get this from the [privy dashboard](https://console.privy.io/).
+
+```java
+const PRIVY_APP_ID = "clnatprpv00sfmi0fv3qc185b";
+
+export default function AppWrapper() {
+  return (
+      
+    
+  );
+}
+```
+
+### Ensure buffer object is available
+
+This line ensures the [Buffer](https://nodejs.org/api/buffer.html) object is available in the global scope, which is important for working with low-level data streams in js. Without the Buffer, social auth will not work.
+
+```java
+window.Buffer = window.Buffer || require("buffer").Buffer;
+```
+
+## Create our App
+
+### Setup Auth provider
+
+The `useMetamaskAuth` hook provides an easy hook for Connecting to Metamask wallets and using them to build an Auth. The React SDK manages the auth for you making it easy to use.
+
+Calling the login function will automatically open the social auth modal and allow the user to select their preferred auth method.
+
+```java
+const { active, authAddr, auth, login, logout } = useMetamaskAuth();
+```
+
+Alternativly you can use the `useCoinbaseAuth` or `useWalletConnectAuth` hooks to connect to a Coinbase wallet or WalletConnect wallet.
+
+```java
+const { active, authAddr, auth, login, logout } = useCoinbaseAuth();
+```
+
+```java
+const { active, authAddr, auth, login, logout } = useWalletConnectAuth();
+```
+
+All of the hooks return the same values:
+
+* `active` – A boolean which indicates if the auth is active.
+
+* `authAddr` – The address of the auth.
+
+* `auth` – The auth object.
+
+* `login` – A function which can be called to login.
+
+* `logout` – A function which can be called to logout.
+
+You can also use all of the auth hooks at the same time and be connected to more than one web3 or web2 auth provider at the same time.
+
+We than use the login method in our application to prompt a User to login before going to the next step.
+
+### Initialize the account for FunWallet interactions
+
+```java
+const {
+  funWallet,
+  address,
+  createFunWallet,
+  activateFunWallet,
+  deactivateFunWallet,
+} = useFunWallet();
+```
+
+#### Returned Values:
+
+* `funWallet`: An object or instance related to the FunWallet.
+
+* `address`: The address for the FunWallet.
+
+* `createFunWallet`: A function to initialize a new FunWallet account.
+
+* `activateFunWallet`: A function to initialize an existing FunWallet account.
+
+* `deactivateFunWallet`: A function to reset the SDK so you can activate a new wallet.
+
+We can than create a function which when called will generate and initialize a new FunWallet. This function will take an `Auth` defined by the `usePrivyAuth` hook.
+
+```cs
+async function step2CreateWallet() {
+  if (!active || !auth) {
+    alert("Privy not connected. Please follow the steps in order.");
+    return;
+  }
+  createFunWallet(auth).catch();
+}
+```
+
+Once this function is called a wallet has been generated and fund can be sent to its address on the blockchain.
+
+### Set & initialize states
+
+These state variables provide a way to manage dynamic data in the application:
+
+* `txIds` – Keeps track of blockchain transaction IDs, enabling lookups and status checks.
+
+* `step` – Tracks which step in the process we are in
+
+```cs
+// Keeping track of our transaction states
+const [receiptTxId, setReceiptTxId] = useState("");
+const [step, setStep] = useState(0);
+```
+
+## Use the Smart wallet to execute operations
+
+Executing operations using the react SDK is easy with the `useAction` hook. This hook takes in an `ActionType` and an `Auth` object and returns a function which can be called to execute the operation.
+
+In this example we just generated a new Wallet but for the wallet to be fully initialized it needs to make a transaction. Any Operation will cause the smart wallet to be initialized on chain. However the SDK comes with a create operation which will initialize the smart contract on chain and permanently create the wallet.
+
+```cs
+const { executeOperation, ready, result } = useAction({
+  action: ActionType.create,
+  params: null,
+});
+```
+
+The use action hook returns some helpful information about the operation:
+
+* `executeOperation` – A function which can be called to execute the operation.
+
+* `ready` – A boolean which indicates if the operation is ready to be executed.
+
+* `result` – The result of the operation.
+
+### Execute the Operation
+
+You can pass the specific auth you want to use to sign for the operation. In this case we want to use the auth we got from the social auth hook. However the react SDK makes this easy by manaing the active auths for you. If you don't pass in an auth it will use the active auths for the current FunKit wallet.
+
+```cs
+async function step3SendTransaction() {
+  if (!ready) {
+    alert("FunWallet not initialized. Please follow the steps in order.");
+    return;
+  }
+
+  const op = (await executeOperation(auth)) as ExecutionReceipt;
+  if (!op) return;
+  setReceiptTxId(op.txId as string);
+}
+```
+
+### Add in your app specific code
+
+We have a memo hook to style each step item based on the state.
+
+```java
+// Build the step items
+const stepItems = useMemo(() => {
+  return [
+    {
+      title: "Connect MetaMask",
+      actionTitle: "Connect",
+      actionOnClick: step1ConnectMetaMask,
+      switchCondition: !!active,
+      completeContent: 
+
+Connected! You are now ready to use FunWallet
+
+,
+    },
+    {
+      title: "Initialize FunWallet",
+      actionTitle: "Initialize",
+      actionOnClick: step2InitalizeWallet,
+      switchCondition: !!address,
+      completeContent: (
+
+            Success! FunWallet Address:
+            
+               {address}.
+
+        
+      ),
+    },
+    {
+      title: "Create a transaction on a FunWallet",
+      actionTitle: "Create",
+      actionOnClick: step3SendTransaction,
+      switchCondition: !!receiptTxId,
+      completeContent: (
+
+          
+            Transaction submitted!
+          {" "}
+          View (smart contract) wallet on{" "}
+          
+            block explorer.
+        
+
+      ),
+    },
+  ];
+}, [
+  step1ConnectMetaMask,
+  active,
+  step2InitalizeWallet,
+  address,
+  step3SendTransaction,
+  receiptTxId,
+]);
+```
+
+```
+return (
+    
+      
+[Create FunWallet with MetaMask]
+
+      
+        {stepItems.map((stepItem, idx) => (
+            
+
+[{stepItem.title}]
+
+            {stepItem.switchCondition ? (
+              stepItem.completeContent
+            ) : (
+               stepItem.actionOnClick?.()}
+                disabled={step < idx}
+                title={stepItem.actionTitle}
+              />
+            )}
+
+        ))}
+
+  
+);
+```
+
+## Summary
+
+Find the complete project [here](https://codesandbox.io/p/github/fun-xyz/Single-Auth-Web-Demo/main?file=/src/app.js)!
+
+![](/images/reactsdk-web3.png)
+

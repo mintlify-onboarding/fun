@@ -1,0 +1,310 @@
+---
+title: "Transfer tokens and NFTS"
+---
+
+## Overview
+
+FunWallet is capable of so many different actions, but core of those is the ability to transfer tokens to other addresses. In this guide, I’ll show you how to send ETH, [ERC-20s](https://ethereum.org/en/developers/docs/standards/tokens/erc-20/), and [ERC-721s (NFTs)](https://ethereum.org/en/developers/docs/standards/tokens/erc-721/) to other addresses. This guide will assume some basic knowledge covered in the Quick Start but I’ll quickly walk through all the steps again.
+
+#### Import required objects
+
+```bash
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment,
+  generatePrivateKey,
+} from "@funkit/core";
+```
+
+#### Configuring the Fun Wallet environment
+
+To begin, we need to set up the environment for your Fun Wallet. We’ll be using the Goerli testnet and a gasless sponsor. Please visit our [dashboard](https://app.fun.xyz) to receive your own production `apiKey`.
+
+```cs
+await configureEnvironment({
+  chain: "goerli",
+  gasSponsor: {
+    sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad",
+  },
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+#### Creating Auth with a private key
+
+We’ll use a private key as the authentication method so we'll create one.
+
+```cs
+const privateKey = generatePrivateKey();
+const auth = new Auth({ privateKey });
+```
+
+#### Creating Fun Wallet with Auth
+
+With the `Auth` instance that we created in the step before, we are now able to initialize and create your `FunWallet`.
+
+```cs
+const funWallet = new FunWallet({
+  users: [{ userId: auth.getAddress() }],
+  uniqueId: auth.getWalletUniqueId(),
+});
+```
+
+## Creating a transfer
+
+Now that we've created a Fun Wallet, we're ready to send tokens to other addresses. There are a few types of transfers you can perform because each token type (ERC20, ERC721) has distinct parameters you must select.
+
+### Transfer Native Token (ETH)
+
+Lets try a simple transfer of 1 ETH. I’ll breakdown the parameters we’ll have to input:
+
+1. `to` \- Address that we want send the ETH to.
+
+2. `token` \- The type of token we want to send. In our case, ETH.
+
+3. `amount` \- Amount of ETH we want to send.
+
+```cs
+const transferParams = {
+    to: "0x2f318C334780961FB129D2a6c30D0763d9a5C970",
+    token: "eth",
+    amount: 1;
+}
+```
+
+### Transfer ERC-20s
+
+Although there is a distinction in how a blockchains views its native token and other fungible tokens, Fun Wallet transfers them the same way. If we wanted to transfer 10 USDC instead it would look like this:
+
+```cs
+const transferParams = {
+  to: "0x2f318C334780961FB129D2a6c30D0763d9a5C970",
+  amount: 3,
+  token: "usdc",
+};
+```
+
+If the token used is not available, use the token address.
+
+### Transfer NFTs
+
+The parameters required to transfer ERC-721s (NFTs) are a little bit more complicated since NFTs are “non-fungible.” These are the different parameters to specify.
+
+1. `collection` \- Every NFT belongs to a collection with a smart contract address. We'll use this address to figure out which NFT to transfer.
+
+2. `tokenId` \- Within a NFT collection there are sometimes thousands of NFTs. With this parameter, we can specify which NFT in the collection we want to transfer.
+
+```cs
+const transferParams = {
+  to: "0x2f318C334780961FB129D2a6c30D0763d9a5C970",
+  collection: "0xF1C4d47943643E221e8e71A887366f90D717c0D8",
+  tokenId: 1,
+};
+```
+
+### Executing the transfer
+
+Now that we have specified the parameters for a transfer. We can create the transfer operation and execute it.
+
+```cs
+const transferOp = await funWallet.transfer(auth, userId, transferParams);
+await funWallet.executeOperation(auth, transferOp);
+```
+
+## Summary
+
+Putting together all the pieces we have `transferAssets()` that you can use to transfer any assets from a Fun Wallet.
+
+Make sure to deposit ETH into the wallet that is associated with the private key used, to ensure that the transaction can be successfully processed.
+
+```cs
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment,
+  generatePrivateKey,
+} from "@funkit/core";
+
+const transferAssets = async () => {
+  await configureEnvironment({
+    chain: "goerli",
+    gasSponsor: {
+      sponsorAddress: "0x175C5611402815Eba550Dad16abd2ac366a63329"
+    },
+    apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+  })
+
+  const privateKey = generatePrivateKey()
+  const auth = new Auth({
+    privateKey,
+  })
+
+  const funWallet = new FunWallet({
+    users: [{
+      userId: await auth.getAddress()
+    }],
+    uniqueId: await auth.getWalletUniqueId(),
+  })
+
+  const transferOp = await funWallet.transfer(auth, await auth.getAddress(), {
+    to: "0x2f318C334780961FB129D2a6c30D0763d9a5C970",
+    token: "eth",
+    amount: 1,
+  })
+
+  const receipt = await funWallet.executeOperation(auth, transferOp)
+  console.log(receipt)
+}
+
+transferAssets()
+```
+
+---
+
+## Full Implementation Examples
+
+### Twitter Transfer
+
+Send tokens to Twitter handles as easily as a public address.
+
+```
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment,
+  GlobalEnvOption,
+  generatePrivateKey
+} from '@funkit/core'
+
+const transferAssets = async () => {
+  await configureEnvironment({
+    chain: "goerli",
+    gasSponsor: {
+      sponsorAddress: "0x175C5611402815Eba550Dad16abd2ac366a63329"
+    },
+    apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+  })
+
+  const privateKey = generatePrivateKey()
+  const auth = new Auth({
+    privateKey
+  })
+
+  const funWallet = new FunWallet({
+    users: [{
+      userId: await auth.getAddress()
+    }],
+    uniqueId: await auth.getWalletUniqueId()
+  })
+
+  const transferOp = await funWallet.transfer(auth, await auth.getAddress(), {
+    to: "twitter-@fun",
+    token: "eth",
+    amount: 1
+  })
+
+  const receipt = await funWallet.executeOperation(auth, transferOp)
+  console.log(receipt)
+
+}
+transferAssets()
+```
+
+Enterprise Feature: Due to Twitter's high cost for API usage, this feature is currently enterprise only.
+
+### Phone number transfer example
+
+Send tokens to a phone number as easily as a public address.
+
+```
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment,
+  GlobalEnvOption,
+  generatePrivateKey
+} from '@funkit/core'
+
+const transferAssets = async () => {
+  await configureEnvironment({
+    chain: "goerli",
+    gasSponsor: {
+      sponsorAddress: "0x175C5611402815Eba550Dad16abd2ac366a63329"
+    },
+    apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+  })
+
+  const privateKey = generatePrivateKey()
+  const auth = new Auth({
+    privateKey
+  })
+
+  const funWallet = new FunWallet({
+    users: [{
+      userId: await auth.getAddress()
+    }],
+    uniqueId: await auth.getWalletUniqueId()
+  })
+
+  const transferOp = await funWallet.transfer(auth, await auth.getAddress(), {
+    to: "phone-+15551234567",
+    token: "eth",
+    amount: 1
+  })
+
+  const receipt = await funWallet.executeOperation(auth, transferOp)
+  console.log(receipt)
+}
+
+transferAssets()
+```
+
+Enterprise Feature: Sending tokens to a phone number requires an offline point of coordination.
+
+### Arbitrary transfer example
+
+Fun.xyz can support arbitrary destination addresses. If you have a unique identifier for users (ie. social network), we can integrate custom transfers to any identifier.
+
+```
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment,
+  GlobalEnvOption,
+  generatePrivateKey
+} from '@funkit/core'
+
+const transferAssets = async () => {
+  await configureEnvironment({
+    chain: "goerli",
+    gasSponsor: {
+      sponsorAddress: "0x175C5611402815Eba550Dad16abd2ac366a63329"
+    },
+    apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+  })
+
+  const privateKey = generatePrivateKey()
+  const auth = new Auth({
+    privateKey
+  })
+
+  const funWallet = new FunWallet({
+    users: [{
+      userId: await auth.getAddress()
+    }],
+    uniqueId: await auth.getWalletUniqueId()
+  })
+
+  const transferOp = await funWallet.transfer(auth, await auth.getAddress(), {
+    to: "yourapp-@alex",
+    token: "eth",
+    amount: 1
+  })
+
+  const receipt = await funWallet.executeOperation(auth, transferOp)
+  console.log(receipt)
+
+}
+transferAssets()
+```

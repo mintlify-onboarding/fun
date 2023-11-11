@@ -1,0 +1,134 @@
+---
+title: "Place limit orders"
+---
+
+## Overview
+
+[Limit orders](https://www.investopedia.com/terms/l/limitorder.asp) lets you decide the price you want to swap a token at. With a Fun Wallet, you can create limit orders to ensure you receive the price you want for your trade. In this guide, I’ll show you how to set up a limit order. I will also assume some basic knowledge covered in the Quick Start but I’ll quickly walk through all the steps again.
+
+#### Import required objects
+
+```cs
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment,
+  generatePrivateKey,
+} from "@funkit/core";
+```
+
+#### Configuring the Fun Wallet environment
+
+To begin, we need to set up the environment for your Fun Wallet. We’ll be using the Goerli testnet and a gasless sponsor. Please visit our [dashboard](https://app.fun.xyz) to receive your own production `apiKey`.
+
+```cs
+await configureEnvironment({
+  chain: "goerli",
+  gasSponsor: {
+    sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad",
+  },
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+Limit orders are not available on Base.
+
+#### Creating Auth with a private key
+
+We’ll use a private key as the authentication method and I’ll provide us with one.
+
+```cs
+const privateKey = generatePrivateKey();
+const auth = new Auth({ privateKey });
+```
+
+#### Creating FunWallet with Auth
+
+With the `Auth` instance that we created in the step before, we are now able to initialize and create your `FunWallet`.
+
+```cs
+const funWallet = new FunWallet({
+  users: [{ userId: auth.getAddress() }],
+  uniqueId: auth.getWalletUniqueId(),
+});
+```
+
+## Creating a limit order
+
+Now that we’ve created a Fun Wallet, we can set up a limit order. We’ll first set up the limit order parameters and I’ll give a quick definition of each parameter.
+
+1. `tokenIn` \- This is the token that we have to sell.
+
+2. `tokenOut` \- This is token that we want to buy.
+
+3. `tokenInAmount` \- This is how much of `tokenIn` we want to sell.
+
+4. `tokenOutAmount` \- This is how much of `tokenOut` we want to be able to buy with the `tokenIn` we’re selling.
+
+Now let’s create a limit order. Suppose I have 1 ETH and I want to buy 1500 USDC with it, then I would fill out `limitParams` like this:
+
+```cs
+const limitParams = {
+  tokenIn: "eth",
+  tokenOut: "usdc",
+  tokenInAmount: 1,
+  tokenOutAmount: 1500,
+};
+```
+
+Now that we have specific the parameters for a limit order. We can schedule the order and the order will fulfill at the correct market price.
+
+```cs
+const limitOp = await funWallet.limitSwapOrder(auth, userId, limitParams);
+await funWallet.scheduleOperation(auth, limitOp);
+```
+
+## Summary
+
+Putting together all the pieces we have `limitOrder()` that you can use to sell any token at your decided price.
+
+```cs
+import {
+  FunWallet,
+  Auth,
+  configureEnvironment,
+  generatePrivateKey
+} from "@funkit/core"
+
+const limitOrder = async () => {
+
+  await configureEnvironment({
+    chain: "goerli",
+    gasSponsor: {
+      sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad"
+    },
+    apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+  })
+
+  const privateKey = generatePrivateKey()
+  const auth = new Auth({
+    privateKey
+  })
+
+  const userId = await auth.getAddress();
+  const funWallet = new FunWallet({
+    users: [{
+      userId: userId
+    }],
+    uniqueId: await auth.getWalletUniqueId(),
+  })
+
+  const limitParams = {
+    tokenIn: "eth",
+    tokenOut: "usdc",
+    tokenInAmount: 1,
+    tokenOutAmount: 1500,
+  }
+
+  const limitOp = await funWallet.limitSwapOrder(auth, userId, limitParams)
+  const operationId = await funWallet.scheduleOperation(auth, limitOp)
+  console.log(operationId)
+}
+
+limitOrder()
+```

@@ -1,0 +1,196 @@
+---
+title: "Batch transactions"
+---
+
+## Overview
+
+Sometimes in crypto you’ll want to create a lot of actions. This means you’ll have to pay gas for a lot of transactions, which is inefficient and a waste of tokens. With a Fun Wallet, you can “batch” actions together so that in 1 transaction you can execute all your actions.
+
+In this guide, I’ll show you how to batch 2 NFT mints together into 1 transaction. This guide will assume some basic knowledge covered in the Quick Start but I’ll quickly walk through all the steps again.
+
+#### Import required objects
+
+```bash
+import {
+  Auth,
+  configureEnvironment,
+  ContractInterface,
+  FunWallet,
+  TransactionParams,
+  generatePrivateKey,
+} from "@funkit/core";
+```
+
+#### Configuring the Fun Wallet environment
+
+To begin, we need to set up the environment for your FunWallet. We’ll be using the Goerli testnet and a gasless sponsor. Please visit our [dashboard](https://app.fun.xyz) to receive your own production `apiKey`.
+
+```cs
+await configureEnvironment({
+  chain: "goerli",
+  gasSponsor: {
+    sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad",
+  },
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+#### Creating Auth with a private key
+
+We’ll use a private key as the authentication method and I’ll provide us with one.
+
+```cs
+const privateKey = generatePrivateKey();
+const auth = new Auth({ privateKey });
+```
+
+#### Creating Fun Wallet with Auth
+
+With the `Auth` instance that we created in the step before, we are now able to initialize and create your `FunWallet`.
+
+```cs
+const funWallet = new FunWallet({
+  users: [{ userId: auth.getAddress() }],
+  uniqueId: auth.getWalletUniqueId(),
+});
+```
+
+## Batching transactions
+
+Now that we’ve created a Fun Wallet, we can create 2 NFT mint transactions that we will batch together. I’ll be using the same transaction that was created in How to send arbitrary transactions so please reference that guide for specifics on creating the transaction. In this guide we’ll focus on batching the transactions together.
+
+### Transaction ABI
+
+This is the ABI we'll be using to create two transactions we can batch together.
+
+```bash
+const ABI = [
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "to",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "tokenId",
+        type: "uint256",
+      },
+    ],
+    name: "mint",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+];
+```
+
+And these are the two transactions I have created for us to mint NFT #99 and NFT #100.
+
+```cs
+const tokenInterface = new ContractInterface(ABI);
+
+const mintNFT_99: TransactionParams = tokenInterface.encodeTransactionParams(
+  "0x4903C3Ce6d80431b54FEDacaa7C3dc9d4d4eF61b",
+  "mint",
+  [await wallet.getAddress(), 99]
+);
+
+const mintNFT_100: TransactionParams = tokenInterface.encodeTransactionParams(
+  "0x4903C3Ce6d80431b54FEDacaa7C3dc9d4d4eF61b",
+  "mint",
+  [await wallet.getAddress(), 100]
+);
+```
+
+Today batch actions are only available for custom, arbitrary transactions. Adding batch actions on first class actions (ie swaps, transfers, etc.) is on our roadmap. If you would like this functionality, [let us know](https://discord.gg/8uRGjbmHe9).
+
+### Creating a batch operation
+
+Once you have created the transactions you would like to batch together, the process of creating a batched operation is quite easy. Just pass in the `TransactionParams` that we’ve created as an array.
+
+```cs
+const operation = await wallet.createBatchOperation(
+  auth,
+  await auth.getAddress(),
+  [mintNFT_99, mintNFT_100]
+);
+const receipt = await wallet.executeOperation(auth, operation);
+```
+
+## Summary
+
+Putting together all the pieces we have `batchActions()` that you can use batch any actions together.
+
+```cs
+import {
+  Auth,
+  configureEnvironment,
+  ContractInterface,
+  FunWallet,
+  TransactionParams,
+  generatePrivateKey
+} from "@funkit/core"
+
+const ABI = [{
+  "inputs": [{
+      "internalType": "address",
+      "name": "to",
+      "type": "address"
+    },
+    {
+      "internalType": "uint256",
+      "name": "tokenId",
+      "type": "uint256"
+    }
+  ],
+  "name": "mint",
+  "outputs": [],
+  "stateMutability": "nonpayable",
+  "type": "function"
+}]
+
+const batchActions = async () => {
+  await configureEnvironment({
+    chain: "goerli",
+    gasSponsor: {
+      sponsorAddress: "0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad"
+    },
+    apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+  })
+
+  const privateKey = generatePrivateKey()
+  const auth = new Auth({
+    privateKey
+  })
+  const wallet = new FunWallet({
+    users: [{
+      userId: await auth.getAddress()
+    }],
+    uniqueId: await auth.getWalletUniqueId()
+  })
+
+  const tokenInterface = new ContractInterface(ABI)
+  const mintNFT_99: TransactionParams = tokenInterface.encodeTransactionParams(
+    "0x4903C3Ce6d80431b54FEDacaa7C3dc9d4d4eF61b",
+    "mint",
+    [await wallet.getAddress(), 99]
+  )
+
+  const mintNFT_100: TransactionParams = tokenInterface.encodeTransactionParams(
+    "0x4903C3Ce6d80431b54FEDacaa7C3dc9d4d4eF61b",
+    "mint",
+    [await wallet.getAddress(), 100]
+
+  )
+
+  const operation = await wallet.createBatchOperation(auth, await auth.getAddress(), [mintNFT_99, mintNFT_100])
+  const receipt = await wallet.executeOperation(auth, operation)
+
+  console.log(receipt)
+
+}
+
+batchActions()
+```

@@ -1,0 +1,159 @@
+---
+title: "Fee configuration"
+description: FunKit allows users to execute transactions on any EVM chain and provides a straightforward method of charging a developer fee on each transaction. This guide will describe an example and configuration options for these fees.
+---
+
+### Import required objects
+
+We have to import `configureEnvironment` to set up the environment.
+
+```java
+import { configureEnvironment } from "@funkit/core";
+```
+
+### Configuring the FunWallet environment
+
+The FunWallet environment is where we configure the developer fee. I’ll first explain the basic environment variables that we need to input:
+
+1. `chain` \- Each FunWallet exists on an [EVM chain](https://ethereum.org/en/developers/docs/evm/), and for this guide, we will be using the Goerli testnet.
+
+2. `apiKey` \- We have provided a rate-limited `apiKey` used strictly for demoing purposes. Please visit our [dashboard](https://app.fun.xyz) to receive your own production `apiKey`.
+
+```cs
+configureEnvironment({
+  chain: "goerli",
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+## Charging a fee
+
+There are a couple of options FunWallet have for creating a developer fee. In the FunWallet environment, we can set up either a fixed fee or a percentage fee. Let me describe how to set it up.
+
+### Charge a fixed fee
+
+Let’s charge with a fixed fee of 0.001 ETH on each transaction. These are the parameters we will need to set up.
+
+1. `token` \- This is where we select the token we want to charge a developer fee in. In our case, it will be ETH.
+
+2. `amount` \- The amount that we want to charge a fee.
+
+3. `recipient` \- This is where you choose to send the fee to, I’ve chosen a random address.
+
+```cs
+configureEnvironment({
+  fee: {
+    token: "eth",
+    amount: 0.001,
+    recipient: "0x2167F5F1F3570F17112E938d8C2237b2e412e075",
+  },
+});
+```
+
+The FunWallet needs to have the gas token to pay the fee, otherwise the transaction will fail. If the recipient address points to a contract that is unable to receive ETH via \`receive()\` or \`fallback()\` the transaction will fail.
+
+### Charge a percentage fee
+
+We also can use a percentage fee that takes current gas costs in mind. For example, we could set a 5% gas fee like this:
+
+```cs
+configureEnvironment({
+  fee: {
+    token: "eth",
+    gasPercent: 5,
+    recipient: "0x2167F5F1F3570F17112E938d8C2237b2e412e075",
+  },
+});
+```
+
+### Charge transaction volume fee
+
+Charging a fixed fee and percentage fee are both determined in the FunWallet environment. However, we can also create transaction specific fees that can be customized with specific transaction parameters on a per transaction basis. See the summary for a full flow.
+
+```cs
+// Charge a 1% fee on each transaction based on volume
+const transactionFee = transactionAmount * 0.01;
+
+const txOptions = {
+  fee: {
+    token: "usdc",
+    amount: transactionFee,
+    recipient: DEVELOPER_ADDR,
+  },
+};
+```
+
+## Summary
+
+### Environment Fees
+
+Putting together all the pieces we can create a FunWallet environment that charges developers fees.
+
+```java
+import { configureEnvironment } from '@funkit/core'
+
+configureEnvironment({
+  chain: "goerli",
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+  fee: {
+    token: "eth",
+    gasPercent: 5,
+    recipient: "0x2167F5F1F3570F17112E938d8C2237b2e412e075",
+  },
+})
+```
+
+### Transaction Volume Fee
+
+Here's is a full flow of creating a transaction volume fee. I'll also recommend you check out the swap tokens guide for details on how to create the transaction.
+
+```java
+import { 
+  FunWallet, 
+  configureEnvironment, 
+  Auth, 
+  generatePrivateKey 
+} from '@funkit/core'
+
+const API_KEY = "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+const PRIVATE_KEY = generatePrivateKey()
+const DEVELOPER_ADDR = // ENTER YOUR ADDRESS HERE
+
+const options = {
+  chain: "base-mainnet",
+  apiKey: API_KEY,
+}
+
+const swapMatic = async () => {
+  await configureEnvironment(options)
+  const auth = new Auth({ privateKey: PRIVATE_KEY })
+  const userId = await auth.getAddress()
+  const funWallet = new FunWallet({
+    users: [{ userId: userId }],
+    uniqueId: await auth.getWalletUniqueId(),
+  })
+  const assets = await funWallet.getAssets()
+  const transactionAmount = 10.00
+  const transactionFee = transactionAmount * 0.01
+  const txOptions = {
+    fee: {
+      token: "usdc",
+      amount: transactionFee,
+      recipient: DEVELOPER_ADDR,
+    }
+  }
+  const swapParams = {
+    tokenIn: "usdc",
+    inAmount: transactionAmount,
+    tokenOut: "eth",
+  }
+  const swapOp = await funWallet.swap(auth, userId, swapParams, txOptions)
+  const receipt = await funWallet.executeOperation(auth, swapOp)
+  console.log(receipt)
+}
+
+// Call the swapMatic function to initiate the swap
+swapMatic()
+```
+
+If the recipient addresses points to a contract that is unable to receive ETH via receive() or fallback(), the FunWallet transactions will be reverted.

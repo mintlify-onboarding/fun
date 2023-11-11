@@ -1,0 +1,60 @@
+---
+title: "Pay gas in native token"
+---
+
+## Overview
+
+FunWallet needs to pay gas to execute actions on an [EVM chain](https://ethereum.org/en/developers/docs/evm/). Gas payments are typically handled with a chain's native token. For example, ETH is Ethereum's native token and Matic is Polygon's native token. In this guide, I'll show you how to create an environment where we use the chain's native token to handle gas fees.
+
+### Import required objects
+
+We have to import `configureEnvironment` to set up the environment.
+
+```cs
+import { configureEnvironment } from "@funkit/core"
+```
+
+### Configuring the FunWallet environment
+
+The FunWallet environment is where we configure the gas settings.
+
+We’ll also explain the other environment variables that we need to input:
+
+1. `chain` \- Each FunWallet exists on an [EVM chain](https://ethereum.org/en/developers/docs/evm/), and for this guide, we will be using the Goerli testnet.
+
+2. `gasSponsor` \- All wallets have to pay gas to execute transactions on a blockchain and FunWallets are no exception to that. But FunWallets also have the option of a gas sponsor that can cover the gas cost. More information on [gasless sponsor](https://docs.fun.xyz/api-reference/gas-sponsor/gasless-sponsor#gaslesssponsor-overview).
+
+3. `apiKey` \- We have provided a rate limited `apiKey` used strictly for demoing purposes. Please visit our [dashboard](https://app.fun.xyz) to receive your own production `apiKey`.
+
+```cs
+configureEnvironment({
+  chain: CHAIN_ID,
+  gasSponsor: {
+    sponsorAddress: GAS_SPONSOR,
+    token: TOKEN_ID,
+  },
+  apiKey: API_KEY,
+});
+```
+
+In a FunWallet setup, using the native token to cover gas costs is the default. So, you won't have to enter anything extra for the FunWallet setup. This is how our setup will appear.
+
+```cs
+configureEnvironment({
+  chain: "goerli",
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+});
+```
+
+### Summary
+
+Putting together all the pieces we can create a FunWallet environment where the gas is paid in the native token.
+
+```cs
+import { configureEnvironment } from '@funkit/core'
+
+configureEnvironment({
+  chain: "goerli",
+  apiKey: "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3",
+})
+```

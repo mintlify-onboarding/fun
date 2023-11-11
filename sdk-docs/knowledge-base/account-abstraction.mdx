@@ -1,0 +1,24 @@
+---
+title: "Account abstraction"
+---
+
+## Overview
+
+Account Abstraction [(EIP-4337)](https://eips.ethereum.org/EIPS/eip-4337) is an architecture designed to improve the flexibility and efficiency of transactions on EVM chains. It allows transactions to be sent from any address and paid in any asset, not just Ether.
+
+It allows for customization of:
+
+* Authentication beyond ECDSA signatures, allowing for, among other things, authentication using web2 authentication such as Sign In with Google or Biometric.
+
+* Replay attack (nonce) schemes, allowing for automated transactions.
+
+* Gas payment schemes, allowing users to pay for gas with ERC-20s, credit cards, or have gas sponsored by a 3rd party.
+
+## Components
+
+| **UserOperation** | The EIP-4337 version of an EVM transaction                                                                                               |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **EntryPoint**    | A singleton contract to execute bundles of UserOperations. Bundlers/Clients whitelist the supported entrypoint.                          |
+| **Paymaster**     | An optional suite of smart contracts that allow transaction gas to be abstracted and dynamic.                                            |
+| **Sender**        | The account abstracted smart contract wallet. Must implement the validateUserOp() to be compatible with the EntryPoint contract.         |
+| **Bundler**       | An off-chain endpoint that bundles and then validates UserOperations before sending them to the main mempool by proxy of the Entrypoint. |

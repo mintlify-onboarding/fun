@@ -1,0 +1,81 @@
+---
+title: "SDK configuration"
+sidebarTitle: Overview
+---
+
+Environment configuration allows variables to be used throughout a FunWallet SDK flow without having to redefine them. Each environment variable has a default value. The following environment variables can be specified:
+
+Environment configuration allows variables to be used throughout a FunWallet SDK flow without having to redefine them. Each environment variable has a default value. The following environment variables can be specified:
+```
+<tr>
+  <td>
+    <Text fontSize={14}>
+      <code>Gas Payment Mode</code>
+    </Text>
+  </td>
+  <td>
+    <Text fontSize={14}>Base Gas Token </Text>
+  </td>
+</tr>
+<tr>
+  <td>
+    <Text fontSize={14}>
+      <code>Developer Fee</code>
+    </Text>
+  </td>
+  <td>
+    <Text fontSize={14}>No fee</Text>
+  </td>
+</tr>
+```
+
+| Environment Variable | Default Value                            |
+| -------------------- | ---------------------------------------- |
+| API Key              | ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3 |
+| Target Blockchain    | Goerli                                   |
+| Gas Payment Mode     | Base Gas Token                           |
+| Developer Fee        | No fee                                   |
+
+
+### Example: Default configuration
+
+```cs
+import { configureEnvironment } from "@funkit/core"
+
+const apiKey = "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+await configureEnvironment({
+  chain: "goerli",
+  apiKey,
+})
+```
+
+### Example: Gasless configuration
+
+```cs
+import { configureEnvironment } from "@funkit/core"
+
+const apiKey = "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+await configureEnvironment({
+  chain: "goerli",
+  apiKey,
+  gasSponsor: {
+    sponsorAddress: '0xCB5D0b4569A39C217c243a436AC3feEe5dFeb9Ad',
+  },
+})
+```
+
+### Example: ERC-20 gas payments configuration
+
+```cs
+import { configureEnvironment } from "@funkit/core"
+
+const apiKey = "ZrhepzWGxm74D0sqstuhT6dGrJxhoy8SZIToX6I3"
+await configureEnvironment({
+  chain: "goerli",
+  apiKey,
+  gasSponsor: {
+    sponsorAddress: '0x40C0cCa76088D45106c2D74D0B4B6405865f22De',
+    token: "USDC",
+  },
+})
+```
